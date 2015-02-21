@@ -31,6 +31,7 @@ If the reader decides to go ahead and reproduce the analysis done on this study,
 * Package dplyr must be installed.
 * Package gridExtra must be installed.
 * Package R.utils must be installed.
+* Package Lubridate must be installed.
 
 
 ## Data Processing
@@ -250,7 +251,7 @@ Using the NOAA's Storm Data Set - processed as described above - we can evaluate
 
 ### Impact on Public Health
 
-The initial obvious analysis to perform is to evaluate which kind of events have a greater impact in public health, in terms of injuries and fatalities. Summarizing the 
+The initial obvious analysis to perform is to evaluate which kind of events have a greater impact in public health, in terms of injuries and fatalities. Summarizing the data by outcome and EventType, and filtering by the 10 most significative events, we can get a visual representation of the most harmful events:
 
 ```{r HealthResults, echo = TRUE, message = FALSE, tidy = FALSE}
 library(ggplot2)
@@ -287,7 +288,44 @@ ggplot(healthAnalysis, aes(x = EventType, y = Total, fill = Outcome)) +
 
 ```
 
-With regards to the time evolution, it seems there is an improvement...
+The plot shows that, when considering together the number of injuried individuals and the fatalities, the event that most significantly impacts the population's health is the **Tornado**. However, a closer analysis reveals that these events are quite survivable, as the ration of Injuried individuals against fatalities is fairly low. **Excessive Heat**, is the next most significative event, and far less survibable than the Tornados.
+
+Now we will perfom a quick analysis in the evolution of the injuries and fatalities over time:
+
+```{r HealthTimeEvolutionResults, echo = TRUE, message = FALSE, tidy = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+
+## Events summarized by outcome
+healthEvolution <- events %>%
+                   mutate(Year = year(BeginDate)) %>%
+                   select(Year, Fatalities, Injuries) %>%
+                   group_by(Year) %>%
+                   summarise(Death = sum(Fatalities), 
+                             Injury = sum(Injuries),
+                             Total = sum(Fatalities + Injuries)) %>%
+                   arrange(Year)
+
+
+## Plot the Evolution
+ggplot(healthEvolution, aes(x = Year, y = Death, colour = "blue")) + 
+  geom_line() + 
+  geom_point() +
+  geom_line(aes(x = Year, y = Injury, colour = "red")) + 
+  geom_point() +
+  scale_colour_discrete(name="Outcome",
+                        breaks=c("Injury", "Death"),
+                        labels=c("Injury", "Death")) +
+  ggtitle("Figure 2: Top Events by Health Impact") +
+  xlab("Year") +
+  ylab("Number of Affected Individuals") +
+  theme(legend.background = element_rect(fill="gray90", size=.5, linetype="dotted"))
+
+```
+
+As can be seen on the plot, there is not a decreasing trend neither in injuries nor deaths; it would be interesting to match this data with anual budgets for medical care and emergencies, but that is out of the scope and possibilities of this small study.
 
 ### Impact on the Economy
 
