@@ -113,7 +113,6 @@ names(projection) <- c("BeginDate", "EventType", "Fatalities", "Injuries", "Prop
                        "PropertyDamageExponent", "CropDamage", "CropDamageExponent")
 
 ## Convert the BeginDate to a proper Data variable
-Sys.setlocale("LC_TIME", "C")
 projection$BeginDate <- as.Date(projection$BeginDate, format = "%m/%d/%Y")
 ```
 
@@ -129,7 +128,70 @@ events <- projection %>% filter(BeginDate >= "1993/01/01")
 
 ### Compute Property Damage cost
 
+Using the description at the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), the exponent on the Property Damange can be computed:
+
+```{r PropertyDamageExponent, echo = TRUE, message = FALSE, tidy = FALSE}
+
+## Exponent mapping to U.S. Dollars
+events$PropertyDamageExponent <- toupper(as.character(events$PropertyDamageExponent))
+events$PropertyDamageExponent[grepl("H", events$PropertyDamageExponent)] <- 100
+events$PropertyDamageExponent[grepl("K", events$PropertyDamageExponent)] <- 1000
+events$PropertyDamageExponent[grepl("M", events$PropertyDamageExponent)] <- 1000000
+events$PropertyDamageExponent[grepl("B", events$PropertyDamageExponent)] <- 1000000000
+events$PropertyDamageExponent[grepl("2", events$PropertyDamageExponent)] <- 100
+events$PropertyDamageExponent[grepl("3", events$PropertyDamageExponent)] <- 1000
+events$PropertyDamageExponent[grepl("4", events$PropertyDamageExponent)] <- 10000
+events$PropertyDamageExponent[grepl("5", events$PropertyDamageExponent)] <- 100000
+events$PropertyDamageExponent[grepl("6", events$PropertyDamageExponent)] <- 1000000
+events$PropertyDamageExponent[grepl("7", events$PropertyDamageExponent)] <- 10000000
+events$PropertyDamageExponent[grepl("8", events$PropertyDamageExponent)] <- 100000000
+
+## Conversion to integer values
+events$PropertyDamageExponent <- as.integer(events$PropertyDamageExponent)
+```
+
+With the exponent as an integer value, we can now proceed to compute the adjusted cost on property damage:
+
+```{r PropertyDamage, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Compute the adjusted property damage
+events <- mutate(events, TotalPropertyDamageCost = PropertyDamage * PropertyDamageExponent)
+```
+
 ### Compute Crop Damage cost
+
+Similarly to the Property Damange above, the description in the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), allows to compute the exponent of the Crop Damage:
+
+```{r CropDamageExponent, echo = TRUE, message = FALSE, tidy = FALSE}
+
+## Exponent mapping to U.S. Dollars
+events$CropDamageExponent <- toupper(as.character(events$CropDamageExponent))
+events$CropDamageExponent[grepl("H", events$CropDamageExponent)] <- 100
+events$CropDamageExponent[grepl("K", events$CropDamageExponent)] <- 1000
+events$CropDamageExponent[grepl("M", events$CropDamageExponent)] <- 1000000
+events$CropDamageExponent[grepl("B", events$CropDamageExponent)] <- 1000000000
+events$CropDamageExponent[grepl("2", events$CropDamageExponent)] <- 100
+events$CropDamageExponent[grepl("3", events$CropDamageExponent)] <- 1000
+events$CropDamageExponent[grepl("4", events$CropDamageExponent)] <- 10000
+events$CropDamageExponent[grepl("5", events$CropDamageExponent)] <- 100000
+events$CropDamageExponent[grepl("6", events$CropDamageExponent)] <- 1000000
+events$CropDamageExponent[grepl("7", events$CropDamageExponent)] <- 10000000
+events$CropDamageExponent[grepl("8", events$CropDamageExponent)] <- 100000000
+
+## Conversion to integer values
+events$CropDamageExponent <- as.integer(events$CropDamageExponent)
+```
+
+With the exponent as an integer value, we can now proceed to compute the adjusted cost on property damage:
+
+```{r CropDamage, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Compute the adjusted crop damage
+events <- mutate(events, TotalCropDamageCost = CropDamage * CropDamageExponent)
+```
+
 
 ### Data Quality Issues
 
@@ -153,13 +215,26 @@ dataQualityIssue <- eventTypes %>% filter(grepl("Coas*", EventType, ignore.case 
 dataQualityIssue
 ```
 
-In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events:
+In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events. In order to select the groups, the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) has been used as a reference; in particular, the table 2.1.1 (Storm Data Event Table):
 
 ```{r EventTypeDimensionalityReduction, echo = TRUE, message = FALSE, tidy = FALSE}
 library(dplyr)
 
 ## Manual process of dimensionality reduction by grouping of events with
 ## similar text using RegEx.
+events$EventType <- toupper(events$EventType) 
+events$EventType[grepl("FLOOD", events$EventType)] <- "Flood Events"
+events$EventType[grepl("WIND", events$EventType)] <- "Wind Events"
+events$EventType[grepl("HEAT", events$EventType)] <- "Extreme Heat"
+events$EventType[grepl("COLD", events$EventType)] <- "Cold Weather Events"
+events$EventType[grepl("FIRE", events$EventType)] <- "Wild Fire"
+events$EventType[grepl("RAIN", events$EventType)] <- "Heavy Rain Effects"
+events$EventType[grepl("TORNADO", events$EventType)] <- "Tornados"
+events$EventType[grepl("AVAL", events$EventType)] <- "Avalanches"
+events$EventType[grepl("HURRICANE", events$EventType)] <- "Hurricanes"
+events$EventType[grepl("TROPICAL", events$EventType)] <- "Tropical Storms"
+events$EventType[grepl("CURRENT", events$EventType)] <- "Rip Current"
+events$EventType[grepl("WINTER", events$EventType)] <- "Generic Winger Weather Events"
 
 ```
 
