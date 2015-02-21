@@ -240,5 +240,38 @@ events$EventType[grepl("WINTER", events$EventType)] <- "Generic Winger Weather E
 
 
 ## Results
-bla bla
 
+Using the NOAA's Storm Data Set - processed as described above - we can evaluate the impact of the different meteorological events on the population, 
+
+With regards to the time evolucion, it seems there is an improvement...
+
+In terms of economic impact of the different 
+
+```{r , echo = TRUE, message = FALSE, tidy = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+## Summarize by PropertyDamange and CropDamage
+costAnalysis <- events %>%
+                select(EventType, TotalCropDamageCost, TotalPropertyDamageCost) %>%
+                group_by(EventType) %>%
+                summarise(Property = sum(TotalPropertyDamageCost), 
+                          Crop = sum(TotalCropDamageCost),
+                          Total = sum(TotalPropertyDamageCost + TotalCropDamageCost)) %>%
+                arrange(desc(Total))
+
+## Unpivot and get Top 10
+costAnalysis <- costAnalysis %>% 
+                gather(Category, Cost, -EventType)
+
+costAnalysis2 <- top_n(costAnalysis, 10, Cost)
+
+## Plot the economical impact analysis
+ggplot(data = costAnalysis2, aes(x = EventType, y = Cost, fill = Category)) + 
+  geom_bar(stat="identity") +
+  ggtitle("Titulo") +
+  xlab("Weather Event Type") +
+  ylab("Billions of Dollars") +
+  labs(fill="Damage Type")
+}
