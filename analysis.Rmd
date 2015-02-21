@@ -1,0 +1,169 @@
+```{r CaptureDate, echo = FALSE, message = FALSE, tidy = FALSE}
+## This one is left with echo = FALSE due to aesthethics motives. This is 
+## just so the document automatically updates the Date to the last compile
+## date.
+captureDate <- Sys.Date()
+```
+---
+title: "Study on Human and Economic Impact of Major Weather Events"
+author: Pablo Doval
+date: `r captureDate`
+output: 
+  html_document:
+    keep_md: true
+    theme: united
+    highlight: neon
+---
+
+# Study on Human and Economic Impact of Major Weather Events
+
+## Synopsis
+
+bla bla
+
+## Pre-requisites for Data Analysis
+
+If the reader decides to go ahead and reproduce the analysis done on this study, the following pre-requisites must be met:
+
+* The data file must be downloaded and available in R's Working Directory.
+* R version is 3.1.2 (others might work, but this was developed with this specific version)
+* Package ggplot2 must be installed.
+* Package dplyr must be installed.
+* Package gridExtra must be installed.
+* Package R.utils must be installed.
+
+
+## Data Processing
+
+The Data Set is available at the following [URL](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2), so the load into R should be automated to cater for any possible modification on the source data set. Since the original data file is stored in a compressed bzip2 file, we will need to uncompress it right after download in order to be able to load into a data frame; we will use the library "R.utils" for that.
+
+```{r LoadData, echo = TRUE, cache = TRUE, message = FALSE, tidy = FALSE}
+library(R.utils)
+
+## Download the Data Set into the current working directory
+if (!file.exists("./repdata%2Fdata%2FStormData.csv.bz2")) 
+{
+    fileUrl <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+    download.file(fileUrl, destfile = "./stormData.csv.bz2")
+} else 
+{
+    message("The Data Set has already been loaded previously. Please, delete it manually if you want to refresh.")
+}
+
+## Uncompress the file in the current working directory
+if (!file.exists("./stormData.csv")) 
+{
+    bunzip2("./stormData.csv.bz2")
+} else 
+{
+    message("The Data Set has already been loaded previously. Please, delete it manually if you want to refresh.")
+}
+
+## Now we can load the source data
+sourceData <- read.csv("./stormData.csv")
+
+## Basic statistics on the data source
+numObs <- nrow(sourceData)
+numVar <- ncol(sourceData)
+
+```
+
+*NOTE: Due to the size of the data set, the cache has been enabled on this knitr document.*
+
+This data set contains **`r numObs`** observations, with **`r numVar`** variables each.
+
+### Geographycal Filtering
+
+The analysis will be performed over the 50 states of the USA, so the data set will be filtered accordingly using R's default *state.abb* data set:
+
+```{r FilterByState, echo = TRUE, cache = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Filter out the rows that are not included in state.abb data set
+filteredByState <- sourceData %>% filter(STATE %in% state.abb) 
+numFilteredObs <- nrow(filteredByState)
+```
+
+The resulting data set, once filtered by the correct states, is comprised of **`r numFilteredObs`**, ouf of the total of *`r numObs`* in the original data set.
+
+
+### Variables of Interest
+
+Since this study will focus on data related to the injuries, casualties and property damage, the relevant columns will be filtered from the data set, retaining the following ones:
+
+* Date of the Begining of the Event
+* Event Type
+* Fatalities
+* Injuries
+* Property Damage
+* Property Damage Exponent
+* Crop Damage
+* Crop Damage Exponent
+
+```{r FilterData, echo = TRUE, cache = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Create a projection with the specified columns
+projection <- filteredByState %>%
+              select(BGN_DATE, EVTYPE, FATALITIES, INJURIES,  
+                     PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP)
+
+## Rename the columns
+names(projection) <- c("BeginDate", "EventType", "Fatalities", "Injuries", "PropertyDamage", 
+                       "PropertyDamageExponent", "CropDamage", "CropDamageExponent")
+
+## Convert the BeginDate to a proper Data variable
+Sys.setlocale("LC_TIME", "C")
+projection$BeginDate <- as.Date(projection$BeginDate, format = "%m/%d/%Y")
+```
+
+### Date Filtering
+
+The analysis of the data set reveals that only sparse events are recorded prior to 1993, with most of the event categories being tracked only on that date and onwards. In order to do the most accurrate analysis possible, the data set will be filtered with events starting in 1993 up to 2011.
+
+```{r DateFiltering, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+## Filter all events prior to 1st Jan 1993
+events <- projection %>% filter(BeginDate >= "1993/01/01")
+```
+
+### Compute Property Damage cost
+
+### Compute Crop Damage cost
+
+### Data Quality Issues
+
+An very basic exploratory data analysis exercise on the data reveals some issues with the quality of the NOAA Storm Data Set used on this analysis that needs to be addressed:
+
+```{r ExploratoryAnalysis, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Compute the list of different types and count the total rows
+eventTypes <- distinct(projection, EventType)
+numDifferentEvents <- nrow(distinct(projection, EventType))
+```
+
+As can be seen, there is a total of **`r numDifferentEvents`** different types of events, which seems quite a large dimensionality to handle when doing our analysis. Digging deeped in the types of events on the list, we can notice immediately that there is a large ammount of duplicates, typographic errors, and general data quality issues, as can be seen in this example searching for Coastal related elements, which reveals quite a surprisingly high number of elements related to Coastal Flooding:
+
+```{r EventTypeQualityIssuesExample, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Filter all Coast* related event types as example
+dataQualityIssue <- eventTypes %>% filter(grepl("Coas*", EventType, ignore.case = TRUE)) %>% select(EventType)
+dataQualityIssue
+```
+
+In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events:
+
+```{r EventTypeDimensionalityReduction, echo = TRUE, message = FALSE, tidy = FALSE}
+library(dplyr)
+
+## Manual process of dimensionality reduction by grouping of events with
+## similar text using RegEx.
+
+```
+
+
+## Results
+bla bla
+
