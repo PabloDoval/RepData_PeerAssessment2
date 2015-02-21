@@ -84,14 +84,14 @@ filteredByState <- sourceData %>% filter(STATE %in% state.abb)
 numFilteredObs <- nrow(filteredByState)
 ```
 
-The resulting data set, once filtered by the correct states, is comprised of **`r numFilteredObs`**, ouf of the total of *`r numObs`* in the original data set.
+The resulting data set, once filtered by the correct states, is comprised of **`r numFilteredObs`**, out of the total of *`r numObs`* in the original data set.
 
 
 ### Variables of Interest
 
 Since this study will focus on data related to the injuries, casualties and property damage, the relevant columns will be filtered from the data set, retaining the following ones:
 
-* Date of the Begining of the Event
+* Date of the Beginning of the Event
 * Event Type
 * Fatalities
 * Injuries
@@ -118,7 +118,7 @@ projection$BeginDate <- as.Date(projection$BeginDate, format = "%m/%d/%Y")
 
 ### Date Filtering
 
-The analysis of the data set reveals that only sparse events are recorded prior to 1993, with most of the event categories being tracked only on that date and onwards. In order to do the most accurrate analysis possible, the data set will be filtered with events starting in 1993 up to 2011.
+The analysis of the data set reveals that only sparse events are recorded prior to 1993, with most of the event categories being tracked only on that date and onward. In order to do the most accurate analysis possible, the data set will be filtered with events starting in 1993 up to 2011.
 
 ```{r DateFiltering, echo = TRUE, message = FALSE, tidy = FALSE}
 library(dplyr)
@@ -128,7 +128,7 @@ events <- projection %>% filter(BeginDate >= "1993/01/01")
 
 ### Compute Property Damage cost
 
-Using the description at the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), the exponent on the Property Damange can be computed:
+Using the description at the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), the exponent on the Property Damage can be computed:
 
 ```{r PropertyDamageExponent, echo = TRUE, message = FALSE, tidy = FALSE}
 
@@ -161,7 +161,7 @@ events <- mutate(events, TotalPropertyDamageCost = PropertyDamage * PropertyDama
 
 ### Compute Crop Damage cost
 
-Similarly to the Property Damange above, the description in the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), allows to compute the exponent of the Crop Damage:
+Similarly to the Property Damage above, the description in the chapter 2.7 in the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf), allows to compute the exponent of the Crop Damage:
 
 ```{r CropDamageExponent, echo = TRUE, message = FALSE, tidy = FALSE}
 
@@ -205,7 +205,7 @@ eventTypes <- distinct(projection, EventType)
 numDifferentEvents <- nrow(distinct(projection, EventType))
 ```
 
-As can be seen, there is a total of **`r numDifferentEvents`** different types of events, which seems quite a large dimensionality to handle when doing our analysis. Digging deeped in the types of events on the list, we can notice immediately that there is a large ammount of duplicates, typographic errors, and general data quality issues, as can be seen in this example searching for Coastal related elements, which reveals quite a surprisingly high number of elements related to Coastal Flooding:
+As can be seen, there is a total of **`r numDifferentEvents`** different types of events, which seems quite a large dimensionality to handle when doing our analysis. Digging deeper in the types of events on the list, we can notice immediately that there is a large amount of duplicates, typographic errors, and general data quality issues, as can be seen in this example searching for Coastal related elements, which reveals quite a surprisingly high number of elements related to Coastal Flooding:
 
 ```{r EventTypeQualityIssuesExample, echo = TRUE, message = FALSE, tidy = FALSE}
 library(dplyr)
@@ -215,7 +215,7 @@ dataQualityIssue <- eventTypes %>% filter(grepl("Coas*", EventType, ignore.case 
 dataQualityIssue
 ```
 
-In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events. In order to select the groups, the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) has been used as a reference; in particular, the table 2.1.1 (Storm Data Event Table) and the **Directive 10-1605**, which limits the standard events to a list of 48 approved ones:
+In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via grouping of similar events. In order to select the groups, the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) has been used as a reference; in particular, the table 2.1.1 (Storm Data Event Table) and the **Directive 10-1605**, which limits the standard events to a list of 48 approved ones:
 
 
 ```{r EventTypeDimensionalityReduction, echo = TRUE, message = FALSE, tidy = FALSE}
@@ -250,7 +250,13 @@ Using the NOAA's Storm Data Set - processed as described above - we can evaluate
 
 ### Impact on Public Health
 
+The initial obvious analysis to perform is to evaluate which kind of events have a greater impact in public health, in terms of injuries and fatalities. Summarizing the 
+
 ```{r HealthResults, echo = TRUE, message = FALSE, tidy = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
 ## Events summarized by outcome
 healthAnalysis <- events %>%
                   select(EventType, Fatalities, Injuries) %>%
@@ -265,10 +271,15 @@ healthAnalysis <- healthAnalysis %>%
                  gather(Outcome, Total, -EventType) %>%
                  filter(Outcome != "Total")
 
+## Reorder for plotting
+healthAnalysis$EventType <-reorder(healthAnalysis$EventType, healthAnalysis$Total)
+healthAnalysis$EventType <- factor(healthAnalysis$EventType, levels=rev(levels(healthAnalysis$EventType)))
+
+
 ## Plot the Top Events
 ggplot(healthAnalysis, aes(x = EventType, y = Total, fill = Outcome)) + 
   geom_bar(stat = "identity") +
-  ggtitle("Top Events by Health Impact") +
+  ggtitle("Figure 1: Top Events by Health Impact") +
   xlab("Weather Event Type") +
   ylab("Number of Affected Individuals") +
   labs(fill="Outcome") +
@@ -276,7 +287,7 @@ ggplot(healthAnalysis, aes(x = EventType, y = Total, fill = Outcome)) +
 
 ```
 
-With regards to the time evolucion, it seems there is an improvement...
+With regards to the time evolution, it seems there is an improvement...
 
 ### Impact on the Economy
 
@@ -301,5 +312,6 @@ costAnalysis <- costAnalysis %>%
                 gather(Category, Cost, -EventType)
 
 ## Plot the economical impact analysis
+```
 
-}
+Bla bla
