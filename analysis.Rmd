@@ -215,39 +215,74 @@ dataQualityIssue <- eventTypes %>% filter(grepl("Coas*", EventType, ignore.case 
 dataQualityIssue
 ```
 
-In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events. In order to select the groups, the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) has been used as a reference; in particular, the table 2.1.1 (Storm Data Event Table):
+In order to come to a more usable data set and to get rid of some of the data quality issues, the dimensionality of the EventType column will be reduced via gruping of similar events. In order to select the groups, the NOAA document [Storm Data Preparation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) has been used as a reference; in particular, the table 2.1.1 (Storm Data Event Table) and the **Directive 10-1605**, which limits the standard events to a list of 48 approved ones:
+
 
 ```{r EventTypeDimensionalityReduction, echo = TRUE, message = FALSE, tidy = FALSE}
 library(dplyr)
+library(R.utils)
 
-## Manual process of dimensionality reduction by grouping of events with
-## similar text using RegEx.
-events$EventType <- toupper(events$EventType) 
-events$EventType[grepl("FLOOD", events$EventType)] <- "Flood Events"
-events$EventType[grepl("WIND", events$EventType)] <- "Wind Events"
-events$EventType[grepl("HEAT", events$EventType)] <- "Extreme Heat"
-events$EventType[grepl("COLD", events$EventType)] <- "Cold Weather Events"
-events$EventType[grepl("FIRE", events$EventType)] <- "Wild Fire"
-events$EventType[grepl("RAIN", events$EventType)] <- "Heavy Rain Effects"
-events$EventType[grepl("TORNADO", events$EventType)] <- "Tornados"
-events$EventType[grepl("AVAL", events$EventType)] <- "Avalanches"
-events$EventType[grepl("HURRICANE", events$EventType)] <- "Hurricanes"
-events$EventType[grepl("TROPICAL", events$EventType)] <- "Tropical Storms"
-events$EventType[grepl("CURRENT", events$EventType)] <- "Rip Current"
-events$EventType[grepl("WINTER", events$EventType)] <- "Generic Winger Weather Events"
+## Limit the events to those approved in the Directive 10-1605
+allowedEvents<-c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold/Wind Chill",
+                 "Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm",
+                 "Excessive Heat", "Extreme Cold/Wind Chill", "Flash Flood", "Flood", "Frost/Freeze",
+                 "Funnel Cloud", "Freezing Fog", "Hail", "Heat", "Heavy Rain", "Heavy Snow", "High Surf",
+                 "High Wind", "Hurricane (Typhoon)", "Ice Storm", "Lake-Effect Snow", "Lakeshore Flood",
+                 "Lightning", "Marine Hail", "Marine High Wind", "Marine Strong Wind", "Marine Thunderstorm Wind",
+                 "Rip Current", "Seiche", "Sleet", "Storm Surge/Tide", "Strong Wind", "Thunderstorm Wind",
+                 "Tornado", "Tropical Depression", "Tropical Storm", "Tsunami", "Volcanic Ash", "Waterspout",
+                 "Wildfire", "Winter Storm", "Winter Weather")
 
+allowedEvents<-toupper(allowedEvents)
+events$EventType <- toupper(events$EventType)
+
+## Perform the filtering
+events <- events %>% filter(EventType %in% allowedEvents)
+
+## Get back to cpitalized case on Event Types for aesthetics
+events$EventType <- capitalize(tolower(events$EventType))
 ```
 
 
 ## Results
 
-Using the NOAA's Storm Data Set - processed as described above - we can evaluate the impact of the different meteorological events on the population, 
+Using the NOAA's Storm Data Set - processed as described above - we can evaluate the impact of the different meteorological events on the population, as well as its economical impact.
+
+### Impact on Public Health
+
+```{r HealthResults, echo = TRUE, message = FALSE, tidy = FALSE}
+## Events summarized by outcome
+healthAnalysis <- events %>%
+                  select(EventType, Fatalities, Injuries) %>%
+                  group_by(EventType) %>%
+                  summarise(Death = sum(Fatalities), 
+                            Injury = sum(Injuries),
+                            Total = sum(Fatalities + Injuries)) %>%
+                  arrange(desc(Total)) %>%
+                  top_n(10)
+
+healthAnalysis <- healthAnalysis %>%
+                 gather(Outcome, Total, -EventType) %>%
+                 filter(Outcome != "Total")
+
+## Plot the Top Events
+ggplot(healthAnalysis, aes(x = EventType, y = Total, fill = Outcome)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Top Events by Health Impact") +
+  xlab("Weather Event Type") +
+  ylab("Number of Affected Individuals") +
+  labs(fill="Outcome") +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+
+```
 
 With regards to the time evolucion, it seems there is an improvement...
 
+### Impact on the Economy
+
 In terms of economic impact of the different 
 
-```{r , echo = TRUE, message = FALSE, tidy = FALSE}
+```{r EconomicResults, echo = TRUE, message = FALSE, tidy = FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -265,13 +300,6 @@ costAnalysis <- events %>%
 costAnalysis <- costAnalysis %>% 
                 gather(Category, Cost, -EventType)
 
-costAnalysis2 <- top_n(costAnalysis, 10, Cost)
-
 ## Plot the economical impact analysis
-ggplot(data = costAnalysis2, aes(x = EventType, y = Cost, fill = Category)) + 
-  geom_bar(stat="identity") +
-  ggtitle("Titulo") +
-  xlab("Weather Event Type") +
-  ylab("Billions of Dollars") +
-  labs(fill="Damage Type")
+
 }
